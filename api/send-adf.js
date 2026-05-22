@@ -21,25 +21,39 @@ function buildAdfXml(lead) {
   const om = pad(Math.abs(offset) % 60);
   const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${sign}${oh}${om}`;
 
-  const firstName = esc(lead.first_name || lead.firstName || "");
-  const lastName = esc(lead.last_name || lead.lastName || "");
-  const fullName = `${firstName} ${lastName}`.trim();
+  // ── GHL field mapping (handles both GHL custom keys and standard keys) ──
+  const fullName  = lead.Name        || lead.name        || "";
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts[0] || "";
+  const lastName  = nameParts.slice(1).join(" ") || "";
 
-  const comments = [
-    lead.date_of_birth ? `Date of Birth: ${lead.date_of_birth}` : "",
-    lead.job_title ? `Current Position: ${lead.job_title}` : "",
-    lead.employment_status ? `Employment Status: ${lead.employment_status}` : "",
-    lead.employer ? `Employer Name: ${lead.employer}` : "",
-    lead.monthly_income ? `Monthly Income: ${lead.monthly_income} CAD` : "",
-    lead.time_at_job ? `Time at Job: ${lead.time_at_job}` : "",
-    lead.cosigner ? `Cosigner: ${lead.cosigner}` : "",
-    lead.vehicle_type ? `Preferred Type of Vehicle: ${lead.vehicle_type}` : "",
-    lead.duration_at_address ? `Duration Lived At Current Address: ${lead.duration_at_address}` : "",
-    lead.license_class ? `Driving License: ${lead.license_class}` : "",
-    lead.notes ? `Notes: ${lead.notes}` : "",
-  ]
-    .filter(Boolean)
-    .join(" // ");
+  const email     = lead.Email       || lead.email       || "";
+  const phone     = lead.Phone       || lead.phone       || "";
+  const street    = lead.Address     || lead.address1    || lead.street || "";
+  const city      = lead.City        || lead.city        || "";
+  const postal    = lead.PostalCode  || lead.postal_code || lead.postalCode || "";
+  const source    = lead.Source      || lead.source      || "WEBSITE";
+  const leadId    = lead.LeadID      || lead.id          || lead.lead_id || "";
+  const vehicle   = lead.VehicleType || lead.vehicle_type || "";
+  const agentName = lead["FM}"]      || lead.FM          || lead.agent_name || process.env.DEFAULT_AGENT_NAME || "";
+  const tier      = lead.Type        || lead.tier        || process.env.DEFAULT_TIER || "Tier 3";
+  const dealerEmail = lead.DealerEmail || lead.dealer_email || process.env.DEFAULT_DEALER_EMAIL || "";
+
+  // Comments — use the pre-built Comment field from GHL if present,
+  // otherwise build from individual fields
+  const comments = lead.Comment || lead.comments || [
+    lead.DateOfBirth    ? `Date of Birth: ${lead.DateOfBirth}`       : "",
+    lead.JobTitle       ? `Current Position: ${lead.JobTitle}`       : "",
+    lead.EmploymentStatus ? `Employment Status: ${lead.EmploymentStatus}` : "",
+    lead.Employer       ? `Employer Name: ${lead.Employer}`          : "",
+    lead.MonthlyIncome  ? `Monthly Income: ${lead.MonthlyIncome} CAD`: "",
+    lead.TimeAtJob      ? `Time at Job: ${lead.TimeAtJob}`           : "",
+    lead.Cosigner       ? `Cosigner: ${lead.Cosigner}`               : "",
+    vehicle             ? `Preferred Type of Vehicle: ${vehicle}`    : "",
+    lead.DurationAtAddress ? `Duration Lived At Current Address: ${lead.DurationAtAddress}` : "",
+    lead.LicenseClass   ? `Driving License: ${lead.LicenseClass}`    : "",
+    lead.Notes          ? `Notes: ${lead.Notes}`                     : "",
+  ].filter(Boolean).join(" // ");
 
   return `<?xml version="1.0"?>
 <?adf version="1.0"?>
@@ -49,32 +63,32 @@ function buildAdfXml(lead) {
       <comments>${esc(comments)}</comments>
       <contact primarycontact="1">
         <address>
-          <city>${esc(lead.city)}</city>
-          <postalcode>${esc(lead.postal_code || lead.postalCode || "")}</postalcode>
-          <street line="1">${esc(lead.address1 || lead.street || "")}</street>
+          <city>${esc(city)}</city>
+          <postalcode>${esc(postal)}</postalcode>
+          <street line="1">${esc(street)}</street>
         </address>
-        <email>${esc(lead.email)}</email>
-        <name part="first" type="individual">${firstName}</name>
-        <name part="full" type="individual">${esc(fullName)}</name>
-        <name part="last" type="individual">${lastName}</name>
-        <phone type="voice" time="day" preferredcontact="1">${esc(lead.phone)}</phone>
+        <email>${esc(email)}</email>
+        <name part="first" type="individual">${esc(firstName)}</name>
+        <name part="full" type="individual">${esc(fullName.trim())}</name>
+        <name part="last" type="individual">${esc(lastName)}</name>
+        <phone type="voice" time="day" preferredcontact="1">${esc(phone)}</phone>
       </contact>
     </customer>
-    <id source="${esc(lead.source || "WEBSITE")}" sequence="0">${esc(lead.id || lead.lead_id || "")}</id>
+    <id source="${esc(source)}" sequence="0">${esc(leadId)}</id>
     <provider>
       <contact>
-        <name part="full" type="individual">${esc(lead.agent_name || process.env.DEFAULT_AGENT_NAME || "")}</name>
+        <name part="full" type="individual">${esc(agentName.split(" ")[0])}</name>
       </contact>
       <name part="full" type="business">${esc(process.env.BUSINESS_NAME || "DF")}</name>
-      <service>${esc(lead.tier || process.env.DEFAULT_TIER || "Tier 3")}</service>
+      <service>${esc(tier)}</service>
     </provider>
     <requestdate>${ts}</requestdate>
     <vehicle>
-      <bodystyle>${esc(lead.vehicle_type || "")}</bodystyle>
+      <bodystyle>${esc(vehicle)}</bodystyle>
     </vehicle>
     <vendor>
-      <agent>${esc(lead.agent_name || process.env.DEFAULT_AGENT_NAME || "")}</agent>
-      <name>${esc(lead.agent_name || process.env.DEFAULT_AGENT_NAME || "")}</name>
+      <agent>${esc(agentName)}</agent>
+      <name>${esc(agentName)}</name>
     </vendor>
   </prospect>
 </adf>`;
@@ -129,7 +143,6 @@ function sendMailgun(toEmail, fromEmail, subject, xmlBody) {
 
 // ─── Main handler ────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
-  // Allow CORS for testing
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-webhook-secret");
@@ -137,7 +150,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  // Optional webhook secret check (set WEBHOOK_SECRET in Vercel env vars)
+  // Optional webhook secret check
   const secret = process.env.WEBHOOK_SECRET;
   if (secret && req.headers["x-webhook-secret"] !== secret) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -146,35 +159,34 @@ module.exports = async function handler(req, res) {
   try {
     const lead = req.body;
 
-    if (!lead || !lead.email) {
+    // Accept email from either key format
+    const email = lead.Email || lead.email;
+    if (!lead || !email) {
       return res.status(400).json({ error: "Missing lead data or email field" });
     }
 
-    // Build ADF XML
     const xml = buildAdfXml(lead);
 
-    // Build subject
-    const firstName = lead.first_name || lead.firstName || "";
-    const lastName = lead.last_name || lead.lastName || "";
-    const source = lead.source || "WEBSITE";
-    const subject = `New ADF Lead – ${firstName} ${lastName} – ${source}`;
+    // Subject line
+    const fullName = lead.Name || lead.name || "";
+    const source   = lead.Source || lead.source || "WEBSITE";
+    const subject  = `New ADF Lead – ${fullName.trim()} – ${source}`;
 
-    // Recipient(s) — use env var or lead field
-    const toEmail = lead.dealer_email || process.env.DEFAULT_DEALER_EMAIL;
+    // Recipient
+    const toEmail = lead.DealerEmail || lead.dealer_email || process.env.DEFAULT_DEALER_EMAIL;
     if (!toEmail) {
-      return res.status(400).json({ error: "No dealer email set. Add DEFAULT_DEALER_EMAIL to environment variables." });
+      return res.status(400).json({ error: "No dealer email. Set DEFAULT_DEALER_EMAIL in Vercel env vars." });
     }
 
     const fromEmail = process.env.FROM_EMAIL || `leads@${process.env.MAILGUN_DOMAIN}`;
 
-    // Send
     await sendMailgun(toEmail, fromEmail, subject, xml);
 
-    console.log(`ADF sent: ${firstName} ${lastName} → ${toEmail}`);
+    console.log(`ADF sent: ${fullName} → ${toEmail}`);
     return res.status(200).json({
       success: true,
       message: `ADF email sent to ${toEmail}`,
-      lead: `${firstName} ${lastName}`,
+      lead: fullName.trim(),
     });
   } catch (err) {
     console.error("ADF send error:", err.message);
