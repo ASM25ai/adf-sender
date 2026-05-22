@@ -61,7 +61,7 @@ function buildAdfXml(data) {
     <id source="${esc(source)}" sequence="0">${esc(leadId)}</id>
     <provider>
       <contact>
-        <name part="full" type="individual">${esc(agent)}</name>
+        <name>${esc(agent)}</name>
       </contact>
       <name part="full" type="business">${esc(process.env.BUSINESS_NAME || "DF")}</name>
       <service>${esc(tier)}</service>
