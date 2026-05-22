@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "functions": {
+    "api/send-adf.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  },
+  "routes": [
+    {
+      "src": "/send-adf",
+      "dest": "/api/send-adf.js"
+    }
+  ]
+}

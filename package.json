@@ -1,0 +1,9 @@
+{
+  "name": "adf-email-sender",
+  "version": "1.0.0",
+  "description": "ADF XML email sender — GHL webhook to Mailgun",
+  "main": "api/send-adf.js",
+  "engines": {
+    "node": "18.x"
+  }
+}
